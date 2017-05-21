@@ -785,8 +785,8 @@ NEWFUNC2;
 		if ($currentTemplateName) {
 			$template =& $manager->getTemplate($currentTemplateName);
 		}
-		$actions =& new ITEMACTIONS($blog);
-		$parser =& new PARSER($actions->getDefinedActions(),$actions,'(<:|:>)',';');
+		$actions = new ITEMACTIONS($blog);
+		$parser  = new PARSER($actions->getDefinedActions(),$actions,'(<:|:>)',';');
 		$actions->setTemplate($template);
 		$actions->setParser($parser);
 		if ($item) $actions->setCurrentItem($item);
