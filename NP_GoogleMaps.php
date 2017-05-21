@@ -107,7 +107,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		include_once($this->getDirectory() . 'geocoder/geocoder.php');
 		$this->geocoder = new NPGM_GeoCoderMain();
 
-		$language = ereg_replace( '[\\|/]', '', getLanguageName());
+		$language = str_replace( array('/','\\'), '', getLanguageName());
 		if(file_exists($this->getDirectory().$language.'.php')) {
 			include_once($this->getDirectory().$language.'.php');
 		}else {
