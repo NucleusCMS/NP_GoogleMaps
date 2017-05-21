@@ -188,14 +188,14 @@ class NP_GoogleMaps extends NucleusPlugin {
 	function GetGPSCoord($fname) {
 		$exif = @exif_read_data ($fname,0,true);
 		if ($exif) {
-			sscanf($exif['GPS']['GPSLatitude'][0], '%d/1', &$lat);
+			sscanf($exif['GPS']['GPSLatitude'][0], '%d/1', $lat);
 			preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLatitude'][1], $matches);
 			if ($matches[2]) $lat += $matches[1]/$matches[2]/60;
 			preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLatitude'][2], $matches);
 			if ($matches[2]) $lat += $matches[1]/$matches[2]/3600;
 			if ($exif['GPS']['GPSLatitudeRef'] == 'S') $lat = - $lat;
 
-			sscanf($exif['GPS']['GPSLongitude'][0], '%d/1', &$long);
+			sscanf($exif['GPS']['GPSLongitude'][0], '%d/1', $long);
 			preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLongitude'][1], $matches);
 			if ($matches[2]) $long += $matches[1]/$matches[2]/60;
 			preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLongitude'][2], $matches);
