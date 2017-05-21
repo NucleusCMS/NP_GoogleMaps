@@ -65,6 +65,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 	}
 	function supportsFeature($what) {
 		switch ($what) {
+			case 'SqlApi':
 			case 'SqlTablePrefix':
 				return 1;
 			default:
@@ -75,7 +76,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		$query = 'DESCRIBE ' .sql_table('plugin_googlemaps')
 				." 'geocoder'";
 		$res = sql_query($query);
-		if (!mysql_fetch_array($res)) {
+		if (!sql_fetch_array($res)) {
 			$query = 'ALTER TABLE ' . sql_table('plugin_googlemaps')
 					.' ADD COLUMN geocoder varchar(40)';
 			sql_query($query);
@@ -155,7 +156,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 
 	function unInstall() {
 		if ($this->getOption('deletetable') == 'yes') {
-			mysql_query('DROP TABLE ' . sql_table('plugin_googlemaps'));
+			sql_query('DROP TABLE ' . sql_table('plugin_googlemaps'));
 		}
 	}
 	
