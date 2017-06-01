@@ -59,7 +59,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 	function getName() { return 'Google Maps'; }
 	function getAuthor()  { return 'Andy'; }
 	function getURL() { return 'http://matsubarafamily.com/blog/'; }
-	function getVersion() { return '1.13'; }
+	function getVersion() { return '1.13.1'; }
 	function getDescription() {
 		return 'Display Google Maps';
 	}
