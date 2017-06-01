@@ -1,7 +1,7 @@
 <?php
 
 class NPGM_GeoCoder {
-	function NPGM_GeoCoder($name) {
+	function __construct($name) {
 		require_once "HTTP/Request.php";
 		$this->name = $name;
 	}
@@ -34,7 +34,7 @@ class NPGM_Google extends NPGM_GeoCoder {
 		global $manager;
 		$googlemaps = $manager->getPlugin("NP_GoogleMaps");
 		$apikey = $googlemaps->getOption('apikey');
-		$req =& new HTTP_Request("http://maps.google.com/maps/geo");
+		$req = new HTTP_Request("http://maps.google.com/maps/geo");
 		$req->setMethod(HTTP_REQUEST_METHOD_GET);
 		$req->addQueryString("key", $apikey, TRUE);
 		$req->addQueryString("output", 'csv', TRUE);
@@ -59,7 +59,7 @@ class NPGM_Google extends NPGM_GeoCoder {
 
 class NPGM_GeoCoderMain {
 	var $defaultgeocoder;
-	function NPGM_GeoCoderMain() {
+	function __construct() {
 		global $manager;
 		$this->plugin = $manager->getPlugin("NP_GoogleMaps");
 		$this->directory = $this->plugin->getDirectory().'geocoder/';
@@ -90,12 +90,12 @@ class NPGM_GeoCoderMain {
 	function loadgeocoder($name) {
 		$classname = 'NPGM_' . $name;
 		if (class_exists ($classname)) {
-			eval('$instance =& new ' . $classname . '($classname);');
+			eval('$instance = new ' . $classname . '($classname);');
 			return $instance;
 		}
 		include ($this->directory . $classname .'.php');
 		if (!class_exists($classname)) return;
-		eval('$instance =& new ' . $classname . '($classname);');
+		eval('$instance = new ' . $classname . '($classname);');
 		return $instance;
 	}
 
