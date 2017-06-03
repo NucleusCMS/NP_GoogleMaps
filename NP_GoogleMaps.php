@@ -91,7 +91,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		$this->pointnumber = 0;
 		$path = ini_get('include_path');
 		if (!strstr($path, $DIR_PLUGINS . 'sharedlibs')) {
-			@include_once(dirname(__FILE__).'/sharedlibs/sharedlibs.php');
+			include_once(dirname(__FILE__).'/sharedlibs/sharedlibs.php');
 		}
 		$path = ini_get('include_path');
 		if (!strstr($path, $DIR_PLUGINS . 'pear')) {
@@ -108,7 +108,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		$this->geocoder = new NPGM_GeoCoderMain();
 
 		$language = str_replace( array('/','\\'), '', getLanguageName());
-		if(file_exists($this->getDirectory().$language.'.php')) {
+		if(is_file($this->getDirectory().$language.'.php')) {
 			include_once($this->getDirectory().$language.'.php');
 		}else {
 			include_once($this->getDirectory().'english.php');
@@ -220,7 +220,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		$parser = xml_parser_create(); 
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1); 
 		xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0); 
-		xml_parse_into_struct($parser,$data,&$d_ar,&$i_ar);
+		xml_parse_into_struct($parser,$data,$d_ar,$i_ar);
 		xml_parser_free($parser);
 		foreach ($d_ar as $token) {
 			$pos = strpos($token['value'], 'geolon');
@@ -241,13 +241,13 @@ class NP_GoogleMaps extends NucleusPlugin {
 		$parser = xml_parser_create(); 
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1); 
 		xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0); 
-		xml_parse_into_struct($parser,$data,&$d_ar,&$i_ar);
+		xml_parse_into_struct($parser,$data,$d_ar,$i_ar);
 		xml_parser_free($parser); 
 		for ($i = 0; $i < count($d_ar); $i++) {
 			if (($d_ar[$i]['tag'] == 'exif') && 
 			   ($d_ar[$i]['attributes']['label'] == 'Latitude')) {
 				$data = explode(',', $d_ar[++$i]['value']);
-				sscanf($data[0], '%d/1', &$lat);
+				sscanf($data[0], '%d/1', $lat);
 				preg_match('|(\d+)/(\d+)|', $data[1], $matches);
 				$lat += $matches[1]/$matches[2]/60;
 				preg_match('|(\d+)/(\d+)|', $data[2], $matches);
@@ -261,7 +261,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 			if (($d_ar[$i]['tag'] == 'exif') && 
 			   ($d_ar[$i]['attributes']['label'] == 'Longitude')) {
 				$data = explode(',', $d_ar[++$i]['value']);
-				sscanf($data[0], '%d/1', &$long);
+				sscanf($data[0], '%d/1', $long);
 				preg_match('|(\d+)/(\d+)|', $data[1], $matches);
 				$long += $matches[1]/$matches[2]/60;
 				preg_match('|(\d+)/(\d+)|', $data[2], $matches);
@@ -291,9 +291,9 @@ class NP_GoogleMaps extends NucleusPlugin {
 			if (!$key) $key = $this->getOption('apikey');
 			$max = intval($map['p']);
 			for ($k = 0; $k < $max; ++$k) {
-				$map["info$k"] = htmlspecialchars($map["info$k"]);
+				$map["info$k"] = hsc($map["info$k"]);
 			}
-			$map["info"] = htmlspecialchars($map["info"]);
+			$map["info"] = hsc($map["info"]);
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -377,7 +377,7 @@ SCRIPTEND;
 	}
 	
 	function DrawMap($mapdata, $i = '') {
-		$script = "	var map$i = new GMap(document.getElementById(\"map$i\"));\n";
+		$script = "	var map$i = new GMap2(document.getElementById(\"map$i\"));\n";
 		$script .= "	map$i.drawpolyline = false;\n";
 		switch ($mapdata['mc']) {
 		case 'none' :
@@ -429,14 +429,14 @@ SCRIPTEND;
 			$mapdata["y$k"] = floatval($mapdata["y$k"]);
 			
 			$j = $this->getPointNumber();
-			$script .= "	var wpoint = new GPoint(" . $mapdata["x$k"] .','. $mapdata["y$k"] . ");\n";
+			$script .= "	var wpoint = new GLatLng(" . $mapdata["y$k"] .','. $mapdata["x$k"] . ");\n";
 //			$anotherx = ($mapdata["x$k"] > 0) ? $mapdata["x$k"]-360 : $mapdata["x$k"]+360;
-//			$script .= "	var wpoint2 = new GPoint({$anotherx}, ". $mapdata["y$k"]. ");\n";
+//			$script .= "	var wpoint2 = new GGLatLng({$anotherx}, ". $mapdata["y$k"]. ");\n";
 			array_push($xarray, $mapdata["x$k"]);
 			if ($bottom > $mapdata["y$k"]) $bottom = $mapdata["y$k"];
 			if ($top < $mapdata["y$k"]) $top = $mapdata["y$k"];
 			if ($k == 0) {
-				$script .= "	map$i.centerAndZoom(wpoint," . $mapdata['zl'] . ");\n";
+				$script .= "	map$i.setCenter(wpoint," . $mapdata['zl'] . ");\n";
 			}
 			if ($mapdata["mark$k"] == "yes") {
 				$script .= "	marker[$j] = new GMarker(wpoint);\n"
@@ -465,7 +465,7 @@ SCRIPTEND;
 			}
 		}
 		if (!$max) {
-			$script .= "	map$i.centerAndZoom(new GPoint(0, 0)," . $mapdata['zl'] . ");\n";
+			$script .= "	map$i.setCenter(new GLatLng(0, 0)," . $mapdata['zl'] . ");\n";
 		}
 		$script .= "	map$i.minpoint = $minpoint;\n";
 		$script .= "	map$i.maxpoint = $j;\n";
@@ -517,6 +517,7 @@ SCRIPTEND;
 			$script .= "	map$i.recenterOrPanToLatLng(marker[$p].point);\n";
 			$script .= "	marker[$p].openInfoWindowHtml(info[$p]);\n";
 		}
+/*
 		switch ($mapdata['tp']) {
 		case 'map' :
 			$script .= "	map$i.setMapType(G_MAP_TYPE);\n";
@@ -527,6 +528,7 @@ SCRIPTEND;
 		case 'dual' :
 			$script .= "	map$i.setMapType(G_HYBRID_TYPE);\n";
 		}
+*/
 		return $script;
 	}
 	
@@ -846,4 +848,3 @@ NEWFUNC2;
 
 }
 
-?>
