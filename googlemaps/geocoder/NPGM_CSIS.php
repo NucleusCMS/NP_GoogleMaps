@@ -91,7 +91,7 @@ class NPGM_CSIS extends NPGM_GeoCoder {
 			$geosys = 'world';
 			$copyright = _NP_GGLMPS_CPADDRESS;
 		}
-		$req =& new HTTP_Request("http://geocode.csis.u-tokyo.ac.jp/cgi-bin/simple_geocode.cgi");
+		$req = new HTTP_Request("http://geocode.csis.u-tokyo.ac.jp/cgi-bin/simple_geocode.cgi");
 		$req->setMethod(HTTP_REQUEST_METHOD_GET);
 		$req->addQueryString("addr", $address, FALSE);
 		$req->addQueryString("charset", 'UTF8', TRUE);
@@ -107,7 +107,7 @@ class NPGM_CSIS extends NPGM_GeoCoder {
 		$parser = xml_parser_create('UTF-8'); 
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1); 
 		xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0); 
-		xml_parse_into_struct($parser,$response1,&$d_ar,&$i_ar);
+		xml_parse_into_struct($parser,$response1,$d_ar,$i_ar);
 		xml_parser_free($parser);
 		
 		$a_index = $i_ar['address'][0];

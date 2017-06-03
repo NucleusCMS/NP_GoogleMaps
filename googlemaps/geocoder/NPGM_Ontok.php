@@ -7,7 +7,7 @@ class NPGM_Ontok extends NPGM_GeoCoder {
 
     function GetGeocode($country, $address) {
 		$key = "";       // subscribers are emailed key after subscribing
-		$req =& new HTTP_Request("http://www.ontok.com/geocoder");
+		$req = new HTTP_Request("http://www.ontok.com/geocoder");
 		$req->setMethod(HTTP_REQUEST_METHOD_GET);
 		$req->addQueryString("key", $key, TRUE);
 		$req->addQueryString("fmt", 'csv', TRUE);
