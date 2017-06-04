@@ -1,52 +1,4 @@
 <?php
-/*************************************************************************
-format1: simple map
-mapformat	::= '<%gmap(' mode ',' pointsinfo ',' mapoption ')%>' |
-		    '<%gmap(' mode ',' pointsinfo ')%>'
-mode		::= 'inline' | 'popup(' linktext ')' | 'link(' linktext ')'
-linktext	::= STRING
-pointsinfo	::= pointinfo | pointinfo ',' pointsinfo
-pointinfo	::= 'p(' address '|' marker '|' infotext ')'
-address		::= coordinate | street | image
-coordinate	::= '[' longitude '|' latitude ']'
-longitude	::= -180 .. 180
-latitude	::= -90 .. 90
-street		::= countrycode '[' strtaddress ']'
-countrycode	::= 'jp' | 'us' | ...
-strtaddress	::= STRING
-image		::= 'image[' imagefile ']'
-imagefile	::= STRING	// supports image files in the media directory and Flickr.
-marker		::= BLANK | 'yes' | 'no'		// BLANK='no'
-infotext	::= STRING
-mapoption	::= 'm(' width '|' height '|' type '|' control '|' zoomlevel ')'
-width		::= BLANK | POSITIVE INTEGER	// BLANK=400
-height		::= BLANK | POSITIVE INTEGER	// BLANK=300
-type		::= BLANK | 'map' | 'sate' | 'dual'	// BLANK='map'
-control		::= BLANK | mapcontrol '/' typecontrol'/' scalecontrol
-mapcontrol	::= BLANK | 'none' | 'xs' | 's' | 'b'   //xs=scale only, s=small, b=large BLANK='s'
-typecontrol	::= BLANK | 'none' | 's' 	// BLANK='s'
-scalecontrol::= BLANK | 'none' | 's'	// BLANK='s'
-zoomlevel	::= BLANK | INTEGER			// BLANK=5
-
-format2: works with <%gmap(link ... %> type tag and make a map for the item. 
-mapformat	::= '<%gmapitem(' mode ',' mapoption ')%>'
-mode		::= 'inline' | 'popup(' linktext ')'
-linktext	::= STRING
-mapoption	::= 'm(' width '|' height '|' type '|' control '|' zoomlevel ')'
-width		::= BLANK | POSITIVE INTEGER	// BLANK=400
-height		::= BLANK | POSITIVE INTEGER	// BLANK=300
-type		::= BLANK | 'map' | 'sate' | 'dual'	// BLANK='map'
-control		::= BLANK | mapcontrol '/' typecontrol'/' scalecontrol
-mapcontrol	::= BLANK | 'none' | 'xs' | 's' | 'b'   //xs=scale only, s=small, b=large BLANK='s'
-typecontrol	::= BLANK | 'none' | 's' 	// BLANK='s'
-scalecontrol::= BLANK | 'none' | 's'	// BLANK='s'
-zoomlevel	::= BLANK | INTEGER			// BLANK=5
-
-format3: supports polyline and multiple icons
-coming soon
-
-*************************************************************************/
-
 class NP_GoogleMaps extends NucleusPlugin {
 	var $mapnumber;
 	var $pointnumber;
@@ -56,32 +8,18 @@ class NP_GoogleMaps extends NucleusPlugin {
 	var $isinline;
 	var $geocoder;
 
-	function getName() { return 'Google Maps'; }
-	function getAuthor()  { return 'Andy'; }
-	function getURL() { return 'http://matsubarafamily.com/blog/'; }
-	function getVersion() { return '1.13.1'; }
-	function getDescription() {
-		return 'Display Google Maps';
-	}
-	function supportsFeature($what) {
-		switch ($what) {
-			case 'SqlApi':
-			case 'SqlTablePrefix':
-				return 1;
-			default:
-				return 0;
-		}
-	}
+	function getName()              { return 'Google Maps'; }
+	function getAuthor()            { return 'Andy'; }
+	function getURL()               { return 'http://matsubarafamily.com/blog/'; }
+	function getVersion()           { return '1.14'; }
+	function getDescription()       { return 'Display Google Maps';}
+	function getTableList()         { return array( sql_table('plugin_googlemaps') );}
+	function supportsFeature($what) { return in_array($what,array('SqlTablePrefix','SqlApi'));}
 	function getEventList() { 
-		$query = 'DESCRIBE ' .sql_table('plugin_googlemaps')
-				." 'geocoder'";
-		$res = sql_query($query);
-		if (!sql_fetch_array($res)) {
-			$query = 'ALTER TABLE ' . sql_table('plugin_googlemaps')
-					.' ADD COLUMN geocoder varchar(40)';
-			sql_query($query);
-		}
-
+		$res = sql_query(sprintf("DESCRIBE %s 'geocoder'", sql_table('plugin_googlemaps')));
+		if (!sql_fetch_array($res))
+			sql_query(sprintf('ALTER TABLE %s ADD COLUMN geocoder varchar(40)', sql_table('plugin_googlemaps')));
+		
 		return array('PreItem'); 
 	}	
 
@@ -115,56 +53,36 @@ class NP_GoogleMaps extends NucleusPlugin {
 		}
 	}
 	
-	function getTableList() {
-		return array( sql_table('plugin_googlemaps') );
-	}
+	function event_PreItem(&$data) {
+		global $currentTemplateName;
 
-	function install() {
-		$this->createOption('apikey' , _GGLMPS_APIKEY, 'text', '');
-		$this->createOption('flickrapi' , _GGLMPS_FLICKRKEY, 'text', '');
-		$this->createOption('deletetable', _GGLMPS_DELETETABLE, 'yesno', 'yes');
-		$this->createOption('mapwidth', _GGLMPS_WIDTH, 'text', '400');
-		$this->createOption('mapheight', _GGLMPS_HEIGHT, 'text', '300');
-		$this->createOption('maptype', _GGLMPS_MAPTYPE, 'select', 'map',
-			_GGLMPS_MAP . '|map|' .
-			_GGLMPS_SATE . '|sate|' .
-			_GGLMPS_DUAL . '|dual');
-		$this->createOption('mapcontrol', _GGLMPS_MAPCONTROLER, 'select', 's',
-			_GGLMPS_NOCONTROLER . '|none|' .
-			_GGLMPS_XSCONTROLER . '|xs|' .
-			_GGLMPS_SMALLCONTROLER . '|s|' .
-			_GGLMPS_LARGECONTROLER . '|b');
-
-		$this->createOption('typecontrol', _GGLMPS_TYPECONTROLER, 'select', 's',
-			_GGLMPS_NOCONTROLER . '|none|' .
-			_GGLMPS_SMALLCONTROLER . '|s');
-
-		$this->createOption('scalecontrol', _GGLMPS_SCALECONTROLER, 'select', 's',
-			_GGLMPS_NOCONTROLER . '|none|' .
-			_GGLMPS_SMALLCONTROLER . '|s');
-		$this->createOption('zoomlevel' , _GGLMPS_ZOOMLEVEL, 'text', '3');
-		$this->createBlogOption('blogapikey', _GGLMPS_APIKEY_FORBLOG, 'text', '');
-		sql_query('CREATE TABLE IF NOT EXISTS ' . sql_table('plugin_googlemaps'). '('
-				. 'geoid int(11) not null auto_increment,'
-				. 'country varchar(10), '
-				. 'address varchar(255), '
-				. 'fulladdress varchar(255), '
-				. 'longitude double not null, '
-				. 'latitude double not null, '
-				. 'PRIMARY KEY (geoid))');
-	}
-
-	function unInstall() {
-		if ($this->getOption('deletetable') == 'yes') {
-			sql_query('DROP TABLE ' . sql_table('plugin_googlemaps'));
-		}
-	}
-	
-	/* static function to encode <%gmap ... %> from data
-	   $data is an associative array
-	*/
-	function Encode($data) {
+		$this->itemdata = array();
+		$this->items = 0;
+		$this->currentItem = &$data["item"]; 
+		$template = TEMPLATE::read($currentTemplateName);
 		
+		$bodies = 0;
+		$mores  = 0;
+		
+		foreach ($template as $part) {
+			$bodies += substr_count($part, '<%body%>');
+			$mores += substr_count($part, '<%more%>');
+		}
+		
+		$pattern1 = '#<%gmap\((.*?)\)%>#s';
+		$pattern2 = '#<%gmapitem\((.*?)\)%>#s';
+		$pattern3 = '#<%gmapitemlink\((.*?),(.*?)\)%>#s';
+		
+		if ($bodies && strpos($this->currentItem->body,'<%gmap')!==false) {
+			$this->currentItem->body = preg_replace_callback($pattern1, array(&$this, 'replaceCallback'),     $this->currentItem->body);
+			$this->currentItem->body = preg_replace_callback($pattern2, array(&$this, 'replaceCallbackItem'), $this->currentItem->body);
+			$this->currentItem->body = preg_replace_callback($pattern3, array(&$this, 'replaceCallbackLink'), $this->currentItem->body);
+		}
+		if ($mores && strpos($this->currentItem->more,'<%gmap')!==false) {
+			$this->currentItem->more = preg_replace_callback($pattern1, array(&$this, 'replaceCallback'),     $this->currentItem->more);
+			$this->currentItem->more = preg_replace_callback($pattern2, array(&$this, 'replaceCallbackItem'), $this->currentItem->more);
+			$this->currentItem->more = preg_replace_callback($pattern3, array(&$this, 'replaceCallbackLink'), $this->currentItem->more);
+		}
 	}
 	
 	function getMapNumber() {
@@ -177,6 +95,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 
 	/* static function to find lng/lat from street address */
 	function Geocode($country, $address) {
+		$this->geocoder = new NPGM_GeoCoderMain();
 		$geocode = $this->geocoder->getGeoCode($country, $address);
 		if ((!$geocode->longitude) && (!$geocode->latitude)) return NULL;
 		array_push($this->copyright, $geocode->copyright);
@@ -215,7 +134,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		preg_match('#/([^_/]+)_[^/]+$#', $url, $matches);
 		$id = $matches[1];
 		$apikey = $this->getOption('flickrapi');
-		$callpath = "http://www.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key=$apikey&photo_id=$id";
+		$callpath = "http://www.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key={$apikey}&photo_id={$id}";
 		$data = @implode("",file($callpath));
 		$parser = xml_parser_create(); 
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1); 
@@ -236,7 +155,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 		}
 		if ($long || $lat)
 			return array($long, $lat);
-		$callpath = "http://www.flickr.com/services/rest/?method=flickr.photos.getExif&api_key=$apikey&photo_id=$id";
+		$callpath = "http://www.flickr.com/services/rest/?method=flickr.photos.getExif&api_key={$apikey}&photo_id={$id}";
 		$data = @implode("",file($callpath));
 		$parser = xml_parser_create(); 
 		xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1); 
@@ -278,8 +197,6 @@ class NP_GoogleMaps extends NucleusPlugin {
 			return array($long, $lat);
 		return FALSE;
 	}
-
-
 	
 	function doAction($type) {
 		global $CONF;
@@ -291,10 +208,9 @@ class NP_GoogleMaps extends NucleusPlugin {
 			if (!$key) $key = $this->getOption('apikey');
 			$max = intval($map['p']);
 			for ($k = 0; $k < $max; ++$k) {
-				$map["info$k"] = hsc($map["info$k"]);
+				$map["info{$k}"] = hsc($map["info{$k}"]);
 			}
-			$map["info"] = hsc($map["info"]);
-
+			$map['info'] = hsc($map['info']);
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -333,7 +249,7 @@ class NP_GoogleMaps extends NucleusPlugin {
 	function doSkinVar($type, $param) {
 		global $CONF, $blogid;
 		if ($blogid) $key = $this->getBlogOption($blogid, 'blogapikey');
-		if (!$key) $key = $this->getOption('apikey');
+		if (!$key)   $key = $this->getOption('apikey');
 		switch($param) {
 		case 'HEAD' :
 			echo <<<HEADER
@@ -377,98 +293,76 @@ SCRIPTEND;
 	}
 	
 	function DrawMap($mapdata, $i = '') {
-		$script = "	var map$i = new GMap2(document.getElementById(\"map$i\"));\n";
-		$script .= "	map$i.drawpolyline = false;\n";
+		$ph['i'] = $i;
+		$script = array();
+		$script[] = 'var map<%i%> = new GMap2(document.getElementById("map<%i%>"));';
+		$script[] = 'map<%i%>.drawpolyline = false;';
 		switch ($mapdata['mc']) {
-		case 'none' :
-			break;
-		case 'xs' :
-			$script .= "	map$i.addControl(new GSmallZoomControl());\n";
-			break;
-		case 's' :
-			$script .= "	map$i.addControl(new GSmallMapControl());\n";
-			break;
-		case 'b' :
-			$script .= "	map$i.addControl(new GLargeMapControl());\n";
-			break;
+    		case 'xs'   : $mapControl = 'GSmallZoomControl';break;
+    		case 's'    : $mapControl = 'GSmallMapControl' ;break;
+    		case 'b'    : $mapControl = 'GLargeMapControl' ;break;
 		}
-		switch ($mapdata['tc']) {
-		case 'none' :
-			break;
-		case 's' :
-			$script .= "	map$i.addControl(new GMapTypeControl());\n";
-			break;
-		}
-		switch ($mapdata['sc']) {
-		case 'none' :
-			break;
-		case 's' :
-			$script .= "	map$i.addControl(new GScaleControl());\n";
-			break;
-		}
-
-
-		$max = intval($mapdata['p']);
+		$script[] = sprintf('map<%i%>.addControl(new %s());', $mapControl);
+		
+		if ($mapdata['tc']==='s') $script[] = "	map<%i%>.addControl(new GMapTypeControl());";
+		if ($mapdata['sc']==='s') $script[] = "	map<%i%>.addControl(new GScaleControl());";
+		
 		if ($mapdata['zl'] == 'auto') {
-			$autozoom = TRUE;
-			$mapdata['zl'] = 2;
 			if ($mapdata['p'] == 0) {
 				$autozoom = FALSE;
 				$mapdata['zl'] = 17;
+			}
+			else {
+    			$autozoom = TRUE;
+    			$mapdata['zl'] = 11;
 			}
 		} else {
 			$autozoom = FALSE;
 			$mapdata['zl'] = intval($mapdata['zl']);
 		}
+		
 		$xarray = array ();
 		$bottom = floatval($mapdata['y0']); $top = $miny;
 		
-		$j = $minpoint = $this->pointnumber;
+		$num = $minpoint = $this->pointnumber;
+		$max = intval($mapdata['p']);
+		$ph['zoom'] = $mapdata['zl'];
 		for ($k = 0; $k < $max; ++$k) {
-			$mapdata["x$k"] = floatval($mapdata["x$k"]);
-			$mapdata["y$k"] = floatval($mapdata["y$k"]);
+			$mark = array();
+			$mark['lat'] = floatval($mapdata["y{$k}"]);
+			$mark['lng'] = floatval($mapdata["x{$k}"]);
 			
-			$j = $this->getPointNumber();
-			$script .= "	var wpoint = new GLatLng(" . $mapdata["y$k"] .','. $mapdata["x$k"] . ");\n";
-//			$anotherx = ($mapdata["x$k"] > 0) ? $mapdata["x$k"]-360 : $mapdata["x$k"]+360;
-//			$script .= "	var wpoint2 = new GGLatLng({$anotherx}, ". $mapdata["y$k"]. ");\n";
-			array_push($xarray, $mapdata["x$k"]);
-			if ($bottom > $mapdata["y$k"]) $bottom = $mapdata["y$k"];
-			if ($top < $mapdata["y$k"]) $top = $mapdata["y$k"];
-			if ($k == 0) {
-				$script .= "	map$i.setCenter(wpoint," . $mapdata['zl'] . ");\n";
-			}
-			if ($mapdata["mark$k"] == "yes") {
-				$script .= "	marker[$j] = new GMarker(wpoint);\n"
-						.  "	map$i.addOverlay(marker[$j]);\n";
-//				$script .= "	marker2[$j] = new GMarker(wpoint2);\n"
-//						.  "	map$i.addOverlay(marker2[$j]);\n";
+			$script[] = sprintf("	var wpoint = new GLatLng(%s,%s);", $mark['lat'], $mark['lng']);
+			
+			if ($k == 0) $script[] = "	map<%i%>.setCenter(wpoint,<%zoom%>);";
+			
+			$num = $this->getPointNumber();
+			if ($mapdata["mark{$k}"] == "yes") {
+				$script[] = "	marker[$num] = new GMarker(wpoint);"
+						.  "	map<%i%>.addOverlay(marker[$num]);";
 			}
 
-			if ($mapdata["info$k"]) {
-				if ($mapdata["mark$k"]=="yes") {
-					$script .= "   info[$j] = '". str_replace("'", "\\'", $mapdata["info$k"]) . "';\n";
-			 		$script .= "	GEvent.addListener(marker[$j], \"click\", function() {\n"
-			 				.  "		marker[$j].openInfoWindowHtml(info[$j]);\n"
-			 				.  "	});\n";
-//			 		$script .= "	GEvent.addListener(marker2[$j], \"click\", function() {\n"
-//			 				.  "		marker2[$j].openInfoWindowHtml(info[$j]);\n"
-//			 				.  "	});\n";
-/*************
-			 		if ($k == 0) {
-						$script .= "	marker$j.openInfoWindowHtml('" . $mapdata["info$k"] . "');\n";
-					}
-*****************/
+			if ($mapdata["info{$k}"]) {
+				if ($mapdata["mark{$k}"]=="yes") {
+					$script[] = "   info[$num] = '". str_replace("'", "\\'", $mapdata["info{$k}"]) . "';";
+			 		$script[] = "	GEvent.addListener(marker[$num], \"click\", function() {"
+			 				.  "		marker[$num].openInfoWindowHtml(info[$num]);"
+			 				.  "	});";
 				} else
-					$script .= "	map$i.openInfoWindow(map$i.getCenterLatLng(), \n"
-							.  "		document.createTextNode('" . $mapdata["info$k"] . "'));\n";
+					$script[] = "	map<%i%>.openInfoWindow(map<%i%>.getCenterLatLng(), "
+							.  "		document.createTextNode('" . $mapdata["info{$k}"] . "'));";
 			}
+			
+			if ($bottom > $mark['lat']) $bottom = $mark['lat'];
+			if ($top < $mark['lat'])    $top = $mark['lat'];
+			
+			array_push($xarray, $mark['lng']);
 		}
-		if (!$max) {
-			$script .= "	map$i.setCenter(new GLatLng(0, 0)," . $mapdata['zl'] . ");\n";
-		}
-		$script .= "	map$i.minpoint = $minpoint;\n";
-		$script .= "	map$i.maxpoint = $j;\n";
+		
+		if (!$max) $script[] = "	map<%i%>.setCenter(new GLatLng(0, 0),<%zoom%>);";
+		
+		$script[] = "	map<%i%>.minpoint = $minpoint;";
+		$script[] = "	map<%i%>.maxpoint = $num;";
 		if ($autozoom) {
 			sort($xarray);
 			$gap = 360 + $xarray[0] - $xarray[count($xarray)-1];
@@ -479,57 +373,28 @@ SCRIPTEND;
 					$maxgap = $p;
 				}
 			}
-			$centerx = $xarray[$maxgap] - (360 - $gap) / 2;
-			$gapx = (360 - $gap) * 1.1;
-			$gapy = ($top - $bottom) * 1.2;
-			$centery = $bottom + ($top - $bottom) * 0.55;
-			$script .= "	var center = new GPoint($centerx, $centery);\n";
-			$script .= "	map$i.centerAtLatLng(center);\n";
-			$script .= "	var zl = map$i.getZoomLevel();\n";
-			$script .= "	while (true) {\n";
-			$script .= "		var bounds = map$i.getSpanLatLng();\n";
-			$script .= "		if ((bounds.width > $gapx) && (bounds.height > $gapy))\n";
-			$script .= "			break;\n";
-			$script .= "		++zl;\n";
-			$script .= "		map$i.zoomTo(zl);\n";
-			$script .= "	}\n";
-/********************** old simple logic **************
-			$right = $xarray[count($xarray)-1];
-			$left = $xarray[0];
-			$centerx = ($right + $left) / 2;
-			$centery = ($top + $bottom) / 2;
-			$gapx = $right - $left;
-			$gapy = $top - $bottom;
-			$script .= "	map$i.recenterOrPanToLatLng(new GPoint($centerx, $centery));\n";
-			$script .= "	var zl = map$i.getZoomLevel();\n";
-			$script .= "	while (true) {\n";
-			$script .= "		var bounds = map$i.getSpanLatLng();\n";
-			$script .= "		if ((bounds.width > $gapx) && (bounds.height > $gapy))\n";
-			$script .= "			break;\n";
-			$script .= "		++zl;\n";
-			$script .= "		map$i.zoomTo(zl);\n";
-			$script .= "	}\n";
-*******************************************************/
+			$ph['centerx'] = $xarray[$maxgap] - (360 - $gap) / 2;
+			$ph['gapx'] = (360 - $gap) * 1.1;
+			$ph['gapy'] = ($top - $bottom) * 1.2;
+			$ph['centery'] = $bottom + ($top - $bottom) * 0.55;
+			$script[] = "	var center = new GPoint(<%centerx%>, <%centery%>);";
+			$script[] = "	map<%i%>.centerAtLatLng(center);";
+			$script[] = "	var zl = map<%i%>.getZoomLevel();";
+			$script[] = "	while (true) {";
+			$script[] = "		var bounds = map<%i%>.getSpanLatLng();";
+			$script[] = "		if ((bounds.width > <%gapx%>) && (bounds.height > <%gapy%>))";
+			$script[] = "			break;";
+			$script[] = "		++zl;";
+			$script[] = "		map<%i%>.zoomTo(zl);";
+			$script[] = "	}";
 		}
-//		var_dump($mapdata);
-		if (!($mapdata['info'] === '') && !($mapdata['info'] === null)) {
-			$p = $mapdata['info'];
-			$script .= "	map$i.recenterOrPanToLatLng(marker[$p].point);\n";
-			$script .= "	marker[$p].openInfoWindowHtml(info[$p]);\n";
+		if ($mapdata['info'] !== '' && $mapdata['info'] !== null) {
+			$ph['info'] = $mapdata['info'];
+			$script[] = "	map<%i%>.recenterOrPanToLatLng(marker[<%info%>].point);";
+			$script[] = "	marker[<%info%>].openInfoWindowHtml(info[<%info%>]);";
 		}
-/*
-		switch ($mapdata['tp']) {
-		case 'map' :
-			$script .= "	map$i.setMapType(G_MAP_TYPE);\n";
-			break;
-		case 'sate' :
-			$script .= "	map$i.setMapType(G_SATELLITE_TYPE);\n";
-			break;
-		case 'dual' :
-			$script .= "	map$i.setMapType(G_HYBRID_TYPE);\n";
-		}
-*/
-		return $script;
+		
+		return $this->parseText(join("\n",$script),$ph);
 	}
 	
 	function createInlineLink($map, $i) {
@@ -542,11 +407,12 @@ SCRIPTEND;
 		$i = $this->getMapNumber();
 		$w2 = $map['width'] + 20;
 		$h2 = $map['height'] + 20;
-		$s = '';
+		$s = array();
 		foreach ($map as $key => $value) {
 			if (strpos($key, 'info') === 0) $value = urlencode($value);
-			if ($value) $s .= "&$key=$value";
+			if ($value) $s[] = "{$key}={$value}";
 		}
+		$s = join('&',$s);
 		if ($linkurl) {  // for MapBlog popup
 			$h2 += 30;
 			$this->script .= <<<NEWFUNC1
@@ -559,7 +425,7 @@ NEWFUNC1;
 		} else {
 			$this->script .= <<<NEWFUNC2
 		function openmap$i(p) {
-			var map=window.open('{$CONF['ActionURL']}?action=plugin&name=GoogleMaps$s&info='+p, 'googlemap', 'scrollbars=no,width=$w2,height=$h2,left=10,top=10,status=yes,resizable=yes,location=no');
+			var map=window.open('{$CONF['ActionURL']}?action=plugin&name=GoogleMaps&{$s}&info='+p, 'googlemap', 'scrollbars=no,width=$w2,height=$h2,left=10,top=10,status=yes,resizable=yes,location=no');
 			return map;
 		}
 
@@ -577,10 +443,10 @@ NEWFUNC2;
 	
 	function createLink($map, $linktext, $items) {
 		for ($i = 0, $j = $this->items; $i < $items; $i++, $j++) {
-			$this->itemdata["x$j"] = $map["x$i"];
-			$this->itemdata["y$j"] = $map["y$i"];
-			$this->itemdata["mark$j"] = 'yes';
-			$this->itemdata["info$j"] = $map["info$i"];
+			$this->itemdata["x{$j}"] = $map["x{$i}"];
+			$this->itemdata["y{$j}"] = $map["y{$i}"];
+			$this->itemdata["mark{$j}"] = 'yes';
+			$this->itemdata["info{$j}"] = $map["info{$i}"];
 		}
 		$s = "<%gmapitemlink({$this->items},$linktext)%>";
 		$this->items += $items;
@@ -598,7 +464,7 @@ NEWFUNC2;
 			if (strpos($pointinfo[2], 'http://') === 0) {
 				$xy = $this->GetFlickrGPSCoord($pointinfo[2]);
 				$coord['address'] = $pointinfo[2];
-			} elseif (strpos($pointinfo[2], '/') === FALSE) {
+			} elseif (strpos($pointinfo[2], '/') === false) {
 				$fname = $DIR_MEDIA . $this->currentItem->authorid . '/' . $pointinfo[2];
 				$coord['address'] = $this->currentItem->authorid . '/' . $pointinfo[2];
 				$xy = $this->GetGPSCoord($fname);
@@ -627,27 +493,20 @@ NEWFUNC2;
 	
 	function replaceCallback($matches) {
 		global $CONF, $blogid;
-		$matches[1] = str_replace('<br />', '', $matches[1]);
+		$matches[1] = preg_replace('{<br[ /]*>}i', '', $matches[1]);
 		if (!preg_match('#^(inline|popup\((.*?)\)|link\((.*?)\))(?:\s*,\s*p\((?:[^)]*?)\))+(?:\s*,\s*m\((.*?)?\))?$#s', $matches[1], $params))
 			return $matches[0];
-		$max = preg_match_all('#(?:\n|\s|,)p\(([^)]*?)\)#', $matches[1], $points);
-		for ($i = 0; $i < $max; ++$i) {
+		
+		$map['p'] = preg_match_all('#(?:\n|\s|,)p\(([^)]*?)\)#', $matches[1], $points);
+		for ($i = 0; $i < $map['p']; ++$i) {
 			$coord = $this->analyzepoint($points[1][$i]);
 
 			if (!is_array($coord)) return $coord;
-			$map["x$i"] = $coord['x'];
-			$map["y$i"] = $coord['y'];
-			$map["mark$i"] = ($coord['mark']) ? $coord['mark'] : 'no';
-
-			if ($params[1] == 'inline') {
-				$map["info$i"] = $coord['info'];
-			} else {
-				if (function_exists(mb_convert_encoding))
-					$coord['info'] = mb_convert_encoding($coord['info'], 'UTF-8', _CHARSET);
-				$map["info$i"] = $coord['info'];
-			}
+			$map["x{$i}"]    = $coord['x'];
+			$map["y{$i}"]    = $coord['y'];
+			$map["mark{$i}"] = $coord['mark'] ? $coord['mark'] : 'no';
+			$map["info{$i}"] = $coord['info'];
 		}
-		$map['p'] = $max;
 		$map['blogid'] = $blogid;
 		if (preg_match('#^(.*?)\|(.*?)\|(.*?)\|(.*?)/(.*?)/(.*?)\|(.*)$#', $params[4], $mapoption)) {
 			$map['width'] = ($mapoption[1]) ? $mapoption[1] : 400;
@@ -666,18 +525,15 @@ NEWFUNC2;
 			$map['sc'] = $this->getOption('scalecontrol');
 			$map['zl'] = $this->getOption('zoomlevel');
 		}
-		if ($params[1] == 'inline' ) {
-			return $this->addInlineMap($map);
-		} elseif (strpos($params[1], 'popup') === 0) {
-			return $this->createPopupLink($map, $params[2]);
-		} else {
-			return $this->createLink($map, $params[3], $i);
-		}
+		
+		if ($params[1]==='inline' )               return $this->addInlineMap($map);
+		elseif(strpos($params[1], 'popup') === 0) return $this->createPopupLink($map, $params[2]);
+		else                                      return $this->createLink($map, $params[3], $i);
 	}
 
 	function replaceCallbackItem($matches) {
 		global $CONF, $blogid;
-		$matches[1] = str_replace('<br />', '', $matches[1]);
+		$matches[1] = preg_replace('{<br[ /]*>}i', '', $matches[1]);
 		if (!preg_match('#^(inline|popup\((.*?)\))(?:\s*,\s*m\((.*?)?\))?$#s', $matches[1], $params))
 			return $matches[0];
 		$map = $this->itemdata;
@@ -718,70 +574,6 @@ NEWFUNC2;
 		return $s;
 	}
 
-
-	function event_PreItem(&$data) {
-		global $currentTemplateName;
-
-		$this->itemdata = array();
-		$this->items = 0;
-		$this->currentItem = &$data["item"]; 
-		$template = TEMPLATE::read($currentTemplateName);
-		$bodies = 0;
-		$mores = 0;
-//		var_dump($template);
-		foreach ($template as $part) {
-			$bodies += substr_count($part, '<%body%>');
-			$mores += substr_count($part, '<%more%>');
-		}
-
-		if ($bodies) {
-			$this->currentItem->body = preg_replace_callback( 
-					'#<%gmap\((.*?)\)%>#s', 
-					array(&$this, 'replaceCallback'), 
-					$this->currentItem->body 
-				); 
-		}
-		if ($mores) {
-			$this->currentItem->more = preg_replace_callback( 
-					'#<%gmap\((.*?)\)%>#s',
-					array(&$this, 'replaceCallback'), 
-					$this->currentItem->more 
-				); 
-		}
-
-		if ($bodies) {
-			$this->currentItem->body = preg_replace_callback( 
-					'#<%gmapitem\((.*?)\)%>#s', 
-
-					array(&$this, 'replaceCallbackItem'), 
-					$this->currentItem->body 
-				); 
-		}
-		if ($mores) {
-			$this->currentItem->more = preg_replace_callback( 
-					'#<%gmapitem\((.*?)\)%>#s',
-					array(&$this, 'replaceCallbackItem'), 
-					$this->currentItem->more 
-				); 
-		}
-		if ($bodies) {
-			$this->currentItem->body = preg_replace_callback( 
-					'#<%gmapitemlink\((.*?),(.*?)\)%>#s', 
-
-					array(&$this, 'replaceCallbackLink'), 
-					$this->currentItem->body 
-				); 
-		}
-		if ($mores) {
-			$this->currentItem->more = preg_replace_callback( 
-					'#<%gmapitemlink\((.*?),(.*?)\)%>#s',
-					array(&$this, 'replaceCallbackLink'), 
-					$this->currentItem->more 
-				); 
-		}
-
-	}
-	
 	function parseTemplate($data, $item='') {
 		global $blog, $currentTemplateName, $manager;
 		if ($currentTemplateName) {
@@ -817,17 +609,10 @@ NEWFUNC2;
 			$j = $i - 2;
 			if (!is_array($coord)) return;
 			if (($coord['x'] == 0) && ($coord['y'] == 0)) return;
-			$map["x$j"] = $coord['x'];
-			$map["y$j"] = $coord['y'];
-			$map["mark$j"] = ($coord['mark']) ? $coord['mark'] : 'no';
-
-			if ($maptype[1] == 'inline') {
-				$map["info$j"] = $coord['info'];
-			} else {
-				if (function_exists(mb_convert_encoding))
-					$coord['info'] = mb_convert_encoding($coord['info'], 'UTF-8', _CHARSET);
-				$map["info$j"] = $coord['info'];
-			}
+			$map["x{$j}"]    = $coord['x'];
+			$map["y{$j}"]    = $coord['y'];
+			$map["mark{$j}"] = $coord['mark'] ? $coord['mark'] : 'no';
+			$map["info{$j}"] = $coord['info'];
 		}
 		$map['p'] = $num - 3;
 		$map['blogid'] = $item->blogid;
@@ -839,6 +624,7 @@ NEWFUNC2;
 		$map['tc'] = ($mapoption[5]) ? $mapoption[5] : 's';
 		$map['sc'] = ($mapoption[6]) ? $mapoption[6] : 's';
 		$map['zl'] = ($mapoption[7] || is_int($mapoption[7])) ? $mapoption[7] : 3;
+		
 		if ($maptype[1] == 'inline' ) {
 			echo $this->addInlineMap($map);
 		} elseif (strpos($maptype[1], 'popup') === 0) {
@@ -846,5 +632,53 @@ NEWFUNC2;
 		}
 	}
 
+	function parseText($tpl,$ph=array()) {
+		foreach($ph as $k=>$v) {
+			$k = "<%{$k}%>";
+			$tpl = str_replace($k,$v,$tpl);
+		}
+		return $tpl;
+	}
+	
+	function install() {
+		$this->createOption('apikey' , _GGLMPS_APIKEY, 'text', '');
+		$this->createOption('flickrapi' , _GGLMPS_FLICKRKEY, 'text', '');
+		$this->createOption('deletetable', _GGLMPS_DELETETABLE, 'yesno', 'yes');
+		$this->createOption('mapwidth', _GGLMPS_WIDTH, 'text', '400');
+		$this->createOption('mapheight', _GGLMPS_HEIGHT, 'text', '300');
+		$this->createOption('maptype', _GGLMPS_MAPTYPE, 'select', 'map',
+			_GGLMPS_MAP . '|map|' .
+			_GGLMPS_SATE . '|sate|' .
+			_GGLMPS_DUAL . '|dual');
+		$this->createOption('mapcontrol', _GGLMPS_MAPCONTROLER, 'select', 's',
+			_GGLMPS_NOCONTROLER . '|none|' .
+			_GGLMPS_XSCONTROLER . '|xs|' .
+			_GGLMPS_SMALLCONTROLER . '|s|' .
+			_GGLMPS_LARGECONTROLER . '|b');
+
+		$this->createOption('typecontrol', _GGLMPS_TYPECONTROLER, 'select', 's',
+			_GGLMPS_NOCONTROLER . '|none|' .
+			_GGLMPS_SMALLCONTROLER . '|s');
+
+		$this->createOption('scalecontrol', _GGLMPS_SCALECONTROLER, 'select', 's',
+			_GGLMPS_NOCONTROLER . '|none|' .
+			_GGLMPS_SMALLCONTROLER . '|s');
+		$this->createOption('zoomlevel' , _GGLMPS_ZOOMLEVEL, 'text', '3');
+		$this->createBlogOption('blogapikey', _GGLMPS_APIKEY_FORBLOG, 'text', '');
+		sql_query('CREATE TABLE IF NOT EXISTS ' . sql_table('plugin_googlemaps'). '('
+				. 'geoid int(11) not null auto_increment,'
+				. 'country varchar(10), '
+				. 'address varchar(255), '
+				. 'fulladdress varchar(255), '
+				. 'longitude double not null, '
+				. 'latitude double not null, '
+				. 'PRIMARY KEY (geoid))');
+	}
+
+	function unInstall() {
+		if ($this->getOption('deletetable') == 'yes') {
+			sql_query('DROP TABLE ' . sql_table('plugin_googlemaps'));
+		}
+	}
 }
 
