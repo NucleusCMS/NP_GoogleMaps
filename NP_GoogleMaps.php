@@ -302,7 +302,8 @@ SCRIPTEND;
     		case 's'    : $mapControl = 'GSmallMapControl' ;break;
     		case 'b'    : $mapControl = 'GLargeMapControl' ;break;
 		}
-		$script[] = sprintf('map<%i%>.addControl(new %s());', $mapControl);
+		$ph['mapControl'] = $mapControl;
+		$script[] = 'map<%i%>.addControl(new <%mapControl%>());';
 		
 		if ($mapdata['tc']==='s') $script[] = "	map<%i%>.addControl(new GMapTypeControl());";
 		if ($mapdata['sc']==='s') $script[] = "	map<%i%>.addControl(new GScaleControl());";
