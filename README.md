@@ -1,6 +1,8 @@
 # NP_GoogleMaps
 
 format1: simple map
+
+```
 mapformat	::= '<%gmap(' mode ',' pointsinfo ',' mapoption ')%>' |
 		    '<%gmap(' mode ',' pointsinfo ')%>'
 mode		::= 'inline' | 'popup(' linktext ')' | 'link(' linktext ')'
@@ -27,8 +29,11 @@ mapcontrol	::= BLANK | 'none' | 'xs' | 's' | 'b'   //xs=scale only, s=small, b=l
 typecontrol	::= BLANK | 'none' | 's' 	// BLANK='s'
 scalecontrol::= BLANK | 'none' | 's'	// BLANK='s'
 zoomlevel	::= BLANK | INTEGER			// BLANK=5
+```
 
 format2: works with <%gmap(link ... %> type tag and make a map for the item. 
+
+```
 mapformat	::= '<%gmapitem(' mode ',' mapoption ')%>'
 mode		::= 'inline' | 'popup(' linktext ')'
 linktext	::= STRING
@@ -41,7 +46,4 @@ mapcontrol	::= BLANK | 'none' | 'xs' | 's' | 'b'   //xs=scale only, s=small, b=l
 typecontrol	::= BLANK | 'none' | 's' 	// BLANK='s'
 scalecontrol::= BLANK | 'none' | 's'	// BLANK='s'
 zoomlevel	::= BLANK | INTEGER			// BLANK=5
-
-format3: supports polyline and multiple icons
-coming soon
-
+```
