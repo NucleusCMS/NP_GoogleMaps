@@ -5,32 +5,33 @@ class NPGM_GeoCoder {
 		require_once "HTTP/Request.php";
 		$this->name = $name;
 	}
-	
+
 	function getName() {
 		if (preg_match('/^NPGM_(.+)$/', $this->name, $match)) {
-				return $match[1];
+			return $match[1];
 		}
+		return '';
 	}
-	
+
 	function getSupportedCountries() {
 		return array();
 	}
 
 	function GetCopyright($country, $address) {
-		return "";
+		return '';
 	}
 
-    function getGeocode($country, $address) {
+	function getGeocode($country, $address) {
 	}
 }
 
 class NPGM_Google extends NPGM_GeoCoder {
-	
+
 	function getSupportedCountries() {
 		return array();
 	}
 
-    function getGeocode($country, $address) {
+	function getGeocode($country, $address) {
 		global $manager;
 		$googlemaps = $manager->getPlugin("NP_GoogleMaps");
 		$apikey = $googlemaps->getOption('apikey');
@@ -41,9 +42,9 @@ class NPGM_Google extends NPGM_GeoCoder {
 		$req->addQueryString("q", $address, FALSE);
 
 		if (!PEAR::isError($req->sendRequest())) {
-		     $response1 = $req->getResponseBody();
+			$response1 = $req->getResponseBody();
 		} else {
-		     $response1 = "";
+			$response1 = "";
 		}
 		$sa = explode(',', $response1);
 		$result->accuracy = $sa[1];
@@ -66,7 +67,7 @@ class NPGM_GeoCoderMain {
 		$this->defaultgeocoder = new NPGM_Google('NPGM_Google');
 		$this->geocoders = array();
 	}
-	
+
 	function loadGeocoders() {
 		$dirhandle = opendir($this->directory);
 		while ($filename = readdir($dirhandle)) {
@@ -84,9 +85,9 @@ class NPGM_GeoCoderMain {
 			}
 		}
 		closedir($dirhandle);
-		
+
 	}
-	
+
 	function loadgeocoder($name) {
 		$classname = 'NPGM_' . $name;
 		if (class_exists ($classname)) {
@@ -107,22 +108,22 @@ class NPGM_GeoCoderMain {
 		$longitude = floatval($geocode->longitude);
 		$latitude = floatval($geocode->latitude);
 		$geocoder = addslashes($geocode->geocoder);
-		$query = 'INSERT INTO ' . sql_table('plugin_googlemaps'). 
-				' (country, address, fulladdress, longitude, latitude, geocoder) VALUES '.
-				"('$country', '$originaladdress', '$address', $longitude, $latitude, '$geocoder')";
+		$query = 'INSERT INTO ' . sql_table('plugin_googlemaps').
+			' (country, address, fulladdress, longitude, latitude, geocoder) VALUES '.
+			"('$country', '$originaladdress', '$address', $longitude, $latitude, '$geocoder')";
 		sql_query($query);
 	}
-	
+
 	function getcopyright(& $geocode, $country, $address) {
 		$geocoder = $this->loadgeocoder($geocode->geocoder);
 		$geocode->copyright = $geocoder->GetCopyright($country, $address);
 	}
-	
+
 	function getGeoCode($country, $address) {
 		str_replace('"', '', $address); // remove double quote to avoid SQL injection
 		str_replace('"', '', $country); // remove double quote to avoid SQL injection
 		$query = 'SELECT longitude, latitude, geocoder FROM '.  sql_table('plugin_googlemaps').
-				 ' WHERE country="' . $country . '" and address="' . $address . '"';
+			' WHERE country="' . $country . '" and address="' . $address . '"';
 		$result = sql_query($query);
 		$geocode = mysql_fetch_object($result);
 		if ($geocode) {
@@ -130,9 +131,9 @@ class NPGM_GeoCoderMain {
 			$this->getcopyright($geocode, $country, $address);
 			return $geocode;
 		}
-		
+
 		$defgeocode = $this->defaultgeocoder->getGeocode($country, $address);
-		if (($defgeocode->accuracy >= 7) || 
+		if (($defgeocode->accuracy >= 7) ||
 			(($defgeocode->accuracy >= 1) && ($defgeocode->country=='jp'))) {
 			$defgeocode->geocoder = $this->defaultgeocoder->getName();
 			$this->storeDB($defgeocode);
@@ -150,13 +151,13 @@ class NPGM_GeoCoderMain {
 		}
 		return $defgeocode;
 	}
-	
+
 	function getAllGeocoderResult($country, $address) { // for debug mode
 		$allresult = array();
 		str_replace('"', '', $address); // remove double quote to avoid SQL injection
 		str_replace('"', '', $country); // remove double quote to avoid SQL injection
 		$query = 'SELECT longitude, latitude, geocoder FROM '.  sql_table('plugin_googlemaps').
-				 ' WHERE country="' . $country . '" and address="' . $address . '"';
+			' WHERE country="' . $country . '" and address="' . $address . '"';
 		$result = sql_query($query);
 		$geocode = mysql_fetch_object($result);
 		if ($geocode) {
@@ -164,7 +165,7 @@ class NPGM_GeoCoderMain {
 			$this->getcopyright($geocode, $country, $address);
 			array_push($allresult, $geocode);
 		}
-		
+
 		$defgeocode = $this->defaultgeocoder->getGeocode($country, $address);
 		$defgeocode->geocoder = $this->defaultgeocoder->getName();
 		array_push($allresult, $defgeocode);
@@ -178,5 +179,3 @@ class NPGM_GeoCoderMain {
 		return $allresult;
 	}
 }
-
-?>
