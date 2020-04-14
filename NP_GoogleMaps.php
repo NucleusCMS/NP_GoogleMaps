@@ -17,9 +17,14 @@ class NP_GoogleMaps extends NucleusPlugin {
     function supportsFeature($what) { return in_array($what,array('SqlTablePrefix','SqlApi'));}
     function getEventList() {
         $res = sql_query(sprintf("DESCRIBE %s 'geocoder'", sql_table('plugin_googlemaps')));
-        if (!sql_fetch_array($res))
-            sql_query(sprintf('ALTER TABLE %s ADD COLUMN geocoder varchar(40)', sql_table('plugin_googlemaps')));
-
+        if (!sql_fetch_array($res)) {
+            sql_query(
+                sprintf(
+                    'ALTER TABLE %s ADD COLUMN geocoder varchar(40)'
+                    , sql_table('plugin_googlemaps')
+                )
+            );
+        }
         return array('PreItem');
     }
 
@@ -29,15 +34,15 @@ class NP_GoogleMaps extends NucleusPlugin {
         $this->pointnumber = 0;
         $path = ini_get('include_path');
         if (!strstr($path, $DIR_PLUGINS . 'sharedlibs')) {
-            include_once(dirname(__FILE__).'/sharedlibs/sharedlibs.php');
+            include_once(__DIR__ .'/sharedlibs/sharedlibs.php');
         }
         $path = ini_get('include_path');
         if (!strstr($path, $DIR_PLUGINS . 'pear')) {
-            ini_set('include_path', $path . PATH_SEPARATOR . $DIR_PLUGINS . 'pear');
+            ini_set('include_path', $path . '/' . $DIR_PLUGINS . 'pear');
         }
         $path = ini_get('include_path');
         if (!strstr($path, $DIR_LIBS . 'pear')) {
-            ini_set('include_path', $path . PATH_SEPARATOR . $DIR_LIBS . 'pear');
+            ini_set('include_path', $path . '/' . $DIR_LIBS . 'pear');
         }
         $this->copyright = array();
 
@@ -74,14 +79,38 @@ class NP_GoogleMaps extends NucleusPlugin {
         $pattern3 = '#<%gmapitemlink\((.*?),(.*?)\)%>#s';
 
         if ($bodies && strpos($this->currentItem->body,'<%gmap')!==false) {
-            $this->currentItem->body = preg_replace_callback($pattern1, array(&$this, 'replaceCallback'),     $this->currentItem->body);
-            $this->currentItem->body = preg_replace_callback($pattern2, array(&$this, 'replaceCallbackItem'), $this->currentItem->body);
-            $this->currentItem->body = preg_replace_callback($pattern3, array(&$this, 'replaceCallbackLink'), $this->currentItem->body);
+            $this->currentItem->body = preg_replace_callback(
+                $pattern1
+                , array(&$this, 'replaceCallback')
+                , $this->currentItem->body
+            );
+            $this->currentItem->body = preg_replace_callback(
+                $pattern2
+                , array(&$this, 'replaceCallbackItem')
+                , $this->currentItem->body
+            );
+            $this->currentItem->body = preg_replace_callback(
+                $pattern3
+                , array(&$this, 'replaceCallbackLink')
+                , $this->currentItem->body
+            );
         }
         if ($mores && strpos($this->currentItem->more,'<%gmap')!==false) {
-            $this->currentItem->more = preg_replace_callback($pattern1, array(&$this, 'replaceCallback'),     $this->currentItem->more);
-            $this->currentItem->more = preg_replace_callback($pattern2, array(&$this, 'replaceCallbackItem'), $this->currentItem->more);
-            $this->currentItem->more = preg_replace_callback($pattern3, array(&$this, 'replaceCallbackLink'), $this->currentItem->more);
+            $this->currentItem->more = preg_replace_callback(
+                $pattern1
+                , array(&$this, 'replaceCallback')
+                , $this->currentItem->more
+            );
+            $this->currentItem->more = preg_replace_callback(
+                $pattern2
+                , array(&$this, 'replaceCallbackItem')
+                , $this->currentItem->more
+            );
+            $this->currentItem->more = preg_replace_callback(
+                $pattern3
+                , array(&$this, 'replaceCallbackLink')
+                , $this->currentItem->more
+            );
         }
     }
 
@@ -97,7 +126,9 @@ class NP_GoogleMaps extends NucleusPlugin {
     function Geocode($country, $address) {
         $this->geocoder = new NPGM_GeoCoderMain();
         $geocode = $this->geocoder->getGeoCode($country, $address);
-        if ((!$geocode->longitude) && (!$geocode->latitude)) return NULL;
+        if ((!$geocode->longitude) && (!$geocode->latitude)) {
+            return NULL;
+        }
         array_push($this->copyright, $geocode->copyright);
         $this->copyright = array_unique($this->copyright);
 
@@ -109,18 +140,30 @@ class NP_GoogleMaps extends NucleusPlugin {
         if ($exif) {
             sscanf($exif['GPS']['GPSLatitude'][0], '%d/1', $lat);
             preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLatitude'][1], $matches);
-            if ($matches[2]) $lat += $matches[1]/$matches[2]/60;
+            if ($matches[2]) {
+                $lat += $matches[1] / $matches[2] / 60;
+            }
             preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLatitude'][2], $matches);
-            if ($matches[2]) $lat += $matches[1]/$matches[2]/3600;
-            if ($exif['GPS']['GPSLatitudeRef'] == 'S') $lat = - $lat;
+            if ($matches[2]) {
+                $lat += $matches[1] / $matches[2] / 3600;
+            }
+            if ($exif['GPS']['GPSLatitudeRef'] === 'S') {
+                $lat = -$lat;
+            }
 
             sscanf($exif['GPS']['GPSLongitude'][0], '%d/1', $long);
             preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLongitude'][1], $matches);
-            if ($matches[2]) $long += $matches[1]/$matches[2]/60;
+            if ($matches[2]) {
+                $long += $matches[1] / $matches[2] / 60;
+            }
             preg_match('|(\d+)/(\d+)|', $exif['GPS']['GPSLongitude'][2], $matches);
-            if ($matches[2]) $long += $matches[1]/$matches[2]/3600;
-            if ($exif['GPS']['GPSLongitudeRef'] == 'W') $long = - $long;
-            if ($exif['GPS']['GPSMapDatum'] =='TOKYO') {
+            if ($matches[2]) {
+                $long += $matches[1] / $matches[2] / 3600;
+            }
+            if ($exif['GPS']['GPSLongitudeRef'] === 'W') {
+                $long = -$long;
+            }
+            if ($exif['GPS']['GPSMapDatum'] === 'TOKYO') {
                 $lat2 = $lat - 0.00010695 * $lat + 0.000017464 * $long + 0.0046017;
                 $long2 = $long - 0.000046038 * $lat - 0.000083043 * $long + 0.010040;
                 if ($lat2 && $long2) return array($long2, $lat2);
@@ -134,8 +177,8 @@ class NP_GoogleMaps extends NucleusPlugin {
         preg_match('#/([^_/]+)_[^/]+$#', $url, $matches);
         $id = $matches[1];
         $apikey = $this->getOption('flickrapi');
-        $callpath = "http://www.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key={$apikey}&photo_id={$id}";
-        $data = @implode("",file($callpath));
+        $callpath = 'http://www.flickr.com/services/rest/?method=flickr.photos.getInfo&api_key=' . $apikey . '&photo_id=' . $id;
+        $data = @implode('',file($callpath));
         $parser = xml_parser_create();
         xml_parser_set_option($parser,XML_OPTION_SKIP_WHITE,1);
         xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0);
@@ -162,9 +205,9 @@ class NP_GoogleMaps extends NucleusPlugin {
         xml_parser_set_option($parser,XML_OPTION_CASE_FOLDING,0);
         xml_parse_into_struct($parser,$data,$d_ar,$i_ar);
         xml_parser_free($parser);
-        for ($i = 0; $i < count($d_ar); $i++) {
-            if (($d_ar[$i]['tag'] == 'exif') &&
-                ($d_ar[$i]['attributes']['label'] == 'Latitude')) {
+        foreach ($d_ar as $i => $iValue) {
+            if (($iValue['tag'] === 'exif') &&
+                ($iValue['attributes']['label'] === 'Latitude')) {
                 $data = explode(',', $d_ar[++$i]['value']);
                 sscanf($data[0], '%d/1', $lat);
                 preg_match('|(\d+)/(\d+)|', $data[1], $matches);
@@ -173,12 +216,12 @@ class NP_GoogleMaps extends NucleusPlugin {
                 $lat += $matches[1]/$matches[2]/3600;
             }
 
-            if (($d_ar[$i]['tag'] == 'exif') &&
-                ($d_ar[$i]['attributes']['label'] == "North or South Latitude")) {
+            if (($iValue['tag'] === 'exif') &&
+                ($iValue['attributes']['label'] === "North or South Latitude")) {
                 $northsouth = $d_ar[++$i]['value'];
             }
-            if (($d_ar[$i]['tag'] == 'exif') &&
-                ($d_ar[$i]['attributes']['label'] == 'Longitude')) {
+            if (($iValue['tag'] === 'exif') &&
+                ($iValue['attributes']['label'] === 'Longitude')) {
                 $data = explode(',', $d_ar[++$i]['value']);
                 sscanf($data[0], '%d/1', $long);
                 preg_match('|(\d+)/(\d+)|', $data[1], $matches);
@@ -186,20 +229,24 @@ class NP_GoogleMaps extends NucleusPlugin {
                 preg_match('|(\d+)/(\d+)|', $data[2], $matches);
                 $long += $matches[1]/$matches[2]/3600;
             }
-            if (($d_ar[$i]['tag'] == 'exif') &&
-                ($d_ar[$i]['attributes']['label'] == "East or West Longitude")) {
+            if (($iValue['tag'] === 'exif') &&
+                ($iValue['attributes']['label'] === "East or West Longitude")) {
                 $eastwest = $d_ar[++$i]['value'];
             }
         }
-        if ($northsouth == 'S') $lat = -$lat;
-        if ($eastwest== 'W') $long = -$long;
-        if ($long || $lat)
+        if ($northsouth === 'S') {
+            $lat = -$lat;
+        }
+        if ($eastwest === 'W') {
+            $long = -$long;
+        }
+        if ($long || $lat) {
             return array($long, $lat);
+        }
         return FALSE;
     }
 
     function doAction($type) {
-        global $CONF;
         switch ($type) {
             case '':
                 $map = $_GET;
@@ -208,7 +255,7 @@ class NP_GoogleMaps extends NucleusPlugin {
                 if (!$key) $key = $this->getOption('apikey');
                 $max = intval($map['p']);
                 for ($k = 0; $k < $max; ++$k) {
-                    $map["info{$k}"] = hsc($map["info{$k}"]);
+                    $map['info' . $k] = hsc($map['info' . $k]);
                 }
                 $map['info'] = hsc($map['info']);
                 ?>
@@ -308,7 +355,7 @@ SCRIPTEND;
         if ($mapdata['tc']==='s') $script[] = "	map<%i%>.addControl(new GMapTypeControl());";
         if ($mapdata['sc']==='s') $script[] = "	map<%i%>.addControl(new GScaleControl());";
 
-        if ($mapdata['zl'] == 'auto') {
+        if ($mapdata['zl'] === 'auto') {
             if ($mapdata['p'] == 0) {
                 $autozoom = FALSE;
                 $mapdata['zl'] = 17;
@@ -338,13 +385,13 @@ SCRIPTEND;
             if ($k == 0) $script[] = "	map<%i%>.setCenter(wpoint,<%zoom%>);";
 
             $num = $this->getPointNumber();
-            if ($mapdata["mark{$k}"] == "yes") {
+            if ($mapdata['mark' . $k] === 'yes') {
                 $script[] = "	marker[$num] = new GMarker(wpoint);"
                     .  "	map<%i%>.addOverlay(marker[$num]);";
             }
 
             if ($mapdata["info{$k}"]) {
-                if ($mapdata["mark{$k}"]=="yes") {
+                if ($mapdata['mark' . $k] === 'yes') {
                     $script[] = "   info[$num] = '". str_replace("'", "\\'", $mapdata["info{$k}"]) . "';";
                     $script[] = "	GEvent.addListener(marker[$num], \"click\", function() {"
                         .  "		marker[$num].openInfoWindowHtml(info[$num]);"
@@ -474,7 +521,9 @@ NEWFUNC2;
                     $coord['address'] = $pointinfo[2];
                     $xy = $this->GetGPSCoord($fname);
                 }
-                if (!$xy) return $matches[0];
+                if (!$xy) {
+                    return $pointinfo[0];
+                }
                 list($coord['x'], $coord['y'])= $xy;
                 break;
             default :
@@ -493,10 +542,11 @@ NEWFUNC2;
 
 
     function replaceCallback($matches) {
-        global $CONF, $blogid;
+        global $blogid;
         $matches[1] = preg_replace('{<br[ /]*>}i', '', $matches[1]);
-        if (!preg_match('#^(inline|popup\((.*?)\)|link\((.*?)\))(?:\s*,\s*p\((?:[^)]*?)\))+(?:\s*,\s*m\((.*?)?\))?$#s', $matches[1], $params))
+        if (!preg_match('#^(inline|popup\((.*?)\)|link\((.*?)\))(?:\s*,\s*p\((?:[^)]*?)\))+(?:\s*,\s*m\((.*?)?\))?$#s', $matches[1], $params)) {
             return $matches[0];
+        }
 
         $map['p'] = preg_match_all('#(?:\n|\s|,)p\(([^)]*?)\)#', $matches[1], $points);
         for ($i = 0; $i < $map['p']; ++$i) {
@@ -557,19 +607,18 @@ NEWFUNC2;
             $map['sc'] = $this->getOption('scalecontrol');
             $map['zl'] = $this->getOption('zoomlevel');
         }
-        if ($params[1] == 'inline' ) {
+        if ($params[1] === 'inline' ) {
             $this->isinline = TRUE;
             return $this->addInlineMap($map);
-        } else {
-            $this->isinline = FALSE;
-            return $this->createPopupLink($map, $params[2]);
         }
+        $this->isinline = FALSE;
+        return $this->createPopupLink($map, $params[2]);
     }
 
     function replaceCallbackLink($matches) {
         $mapnum = $this->mapnumber-1;
         if ($this->isinline)
-            $s = "<a href=\"javascript:void(0)\" onclick=\"map$mapnum.gotopoint({$matches[1]});return false;\" class=\"maplink\">{$matches[2]}</a>";
+            $s = '<a href="javascript:void(0)" onclick="map' . $mapnum . ".gotopoint(" . $matches[1] . ');return false;" class="maplink">' . $matches[2] . "</a>";
         else
             $s = "<a href=\"javascript:void(0)\" onclick=\"if(window[map$mapnum]==null||map$mapnum.closed)var map$mapnum=openmap$mapnum($matches[1]);return false;\" class=\"maplink\">{$matches[2]}</a>";
         return $s;
@@ -626,7 +675,7 @@ NEWFUNC2;
         $map['sc'] = ($mapoption[6]) ? $mapoption[6] : 's';
         $map['zl'] = ($mapoption[7] || is_int($mapoption[7])) ? $mapoption[7] : 3;
 
-        if ($maptype[1] == 'inline' ) {
+        if ($maptype[1] === 'inline' ) {
             echo $this->addInlineMap($map);
         } elseif (strpos($maptype[1], 'popup') === 0) {
             echo $this->createPopupLink($map, $maptype[2]);
@@ -677,7 +726,7 @@ NEWFUNC2;
     }
 
     function unInstall() {
-        if ($this->getOption('deletetable') == 'yes') {
+        if ($this->getOption('deletetable') === 'yes') {
             sql_query('DROP TABLE ' . sql_table('plugin_googlemaps'));
         }
     }
